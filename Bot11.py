@@ -1,4 +1,3 @@
-
 import os
 import requests
 from flask import Flask, request
@@ -9,25 +8,25 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 KEYWORDS = os.environ.get("KEYWORDS", "").split(",")
 LANGUAGE = os.environ.get("LANGUAGE", "ar")
 NEWS_API = "https://newsapi.org/v2/everything"
-NEWS_API_KEY = "demo"  # يجب استبداله بمفتاح فعلي إذا أردت مصادر واقعية
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "demo")  # استبدل demo بمفتاحك الحقيقي
 
 def get_news():
     query = " OR ".join(KEYWORDS)
     params = {
         "q": query,
-        "language": "en",
-        "pageSize": 5,
+        "language": LANGUAGE,
         "sortBy": "publishedAt",
+        "pageSize": 3,
         "apiKey": NEWS_API_KEY
     }
-    r = requests.get(NEWS_API, params=params)
-    articles = r.json().get("articles", [])
-    results = []
-    for art in articles:
-        title = art.get("title")
-        url = art.get("url")
-        results.append(f"• {title}\n{url}")
-    return "\n\n".join(results) if results else "لا توجد أخبار جديدة."
+    response = requests.get(NEWS_API, params=params)
+    data = response.json()
+    if "articles" in data:
+        articles = data["articles"]
+        news_list = [f"- {article['title']}\n{article['url']}" for article in articles]
+        return "\n\n".join(news_list)
+    else:
+        return "لم يتم العثور على أخبار حالياً."
 
 def send_message(chat_id, text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -44,9 +43,14 @@ def set_webhook():
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
 def receive_update():
     data = request.get_json()
-    chat_id = data["message"]["chat"]["id"]
-    text = get_news()
-    send_message(chat_id, text)
+    if "message" in data:
+        chat_id = data["message"]["chat"]["id"]
+        text = data["message"].get("text", "")
+        if text == "/start":
+            send_message(chat_id, "مرحباً! أرسل لي كلمة مفتاحية لأرسل لك آخر الأخبار.")
+        else:
+            news = get_news()
+            send_message(chat_id, news or "لا توجد أخبار حالياً.")
     return {"ok": True}
 
 @app.route("/")
@@ -55,18 +59,3 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
-@app.route('/', methods=["POST"])
-def webhook():
-    data = request.get_json()
-
-    if "message" in data:
-        chat_id = data["message"]["chat"]["id"]
-        text = data["message"].get("text", "")
-
-        if text == "/start":
-            send_message(chat_id, "أهلاً بك! أرسل كلمة مفتاحية مثل 'غزة' أو 'إسرائيل' للحصول على آخر الأخبار.")
-        else:
-            news = get_news()
-            send_message(chat_id, news or "لم يتم العثور على أخبار.")
-
-    return {"ok": True}
