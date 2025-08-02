@@ -11,6 +11,7 @@ NEWS_API = "https://newsapi.org/v2/everything"
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "demo")  # استبدل demo بمفتاحك الحقيقي
 
 def get_news():
+    return "✅ البوت يعمل بنجاح! (اختبار)"
     query = " OR ".join(KEYWORDS)
     params = {
         "q": query,
