@@ -4,58 +4,66 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
+# متغيرات البيئة
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-KEYWORDS = os.environ.get("KEYWORDS", "").split(",")
-LANGUAGE = os.environ.get("LANGUAGE", "ar")
-NEWS_API = "https://newsapi.org/v2/everything"
-NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "")
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
+BASE_TELEGRAM_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
-def get_news():
-    return "✅ البوت يعمل بنجاح! (اختبار)"
-    query = " OR ".join(KEYWORDS)
-    params = {
-        "q": query,
-        "language": LANGUAGE,
-        "sortBy": "publishedAt",
-        "pageSize": 3,
-        "apiKey": NEWS_API_KEY
-    }
-    response = requests.get(NEWS_API, params=params)
-    data = response.json()
-    if "articles" in data:
-        articles = data["articles"]
-        news_list = [f"- {article['title']}\n{article['url']}" for article in articles]
-        return "\n\n".join(news_list)
-    else:
-        return "لم يتم العثور على أخبار حالياً."
+# دالة جلب الأخبار
+def get_news(query="غزة"):
+    url = f"https://newsapi.org/v2/everything?q={query}&apiKey={NEWS_API_KEY}&language=ar&sortBy=publishedAt&pageSize=5"
+    response = requests.get(url)
+    if response.status_code != 200:
+        return "⚠️ حدث خطأ أثناء جلب الأخبار."
+    
+    articles = response.json().get("articles", [])
+    if not articles:
+        return "❌ لا توجد أخبار حالياً."
 
+    result = ""
+    for article in articles:
+        title = article.get("title", "بدون عنوان")
+        url = article.get("url", "")
+        result += f"📰 {title}\n{url}\n\n"
+    return result.strip()
+
+# دالة إرسال رسالة لتليجرام
 def send_message(chat_id, text):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    data = {"chat_id": chat_id, "text": text}
-    requests.post(url, data=data)
+    url = f"{BASE_TELEGRAM_URL}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text}
+    requests.post(url, data=payload)
 
+# نقطة استقبال الرسائل
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
-    if "message" in data:
-        chat_id = data["message"]["chat"]["id"]
-        text = get_news()
-        send_message(chat_id, text)
+    try:
+        message = data.get("message", {})
+        chat_id = message["chat"]["id"]
+        text = message.get("text", "").strip()
+
+        if not text:
+            send_message(chat_id, "📩 أرسل كلمة مثل: غزة أو إيران أو لبنان")
+        else:
+            news = get_news(text)
+            send_message(chat_id, news)
+
+    except Exception as e:
+        print("Error:", e)
     return "OK"
 
+# نقطة تفعيل Webhook
 @app.route("/setwebhook")
 def set_webhook():
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook"
     webhook_url = f"https://{request.host}/webhook"
+    url = f"{BASE_TELEGRAM_URL}/setWebhook"
     response = requests.post(url, data={"url": webhook_url})
-    if response.status_code == 200:
-        return "✅ تم ربط البوت بنجاح!"
-    else:
-        return f"❌ فشل الربط: {response.text}"
+    return response.text
 
-@app.route("/", methods=["GET"])
+# صفحة فحص التشغيل
+@app.route("/")
 def home():
-    return "✅ البوت يعمل!"
+    return "✅ البوت يعمل بنجاح!"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(debug=True)
