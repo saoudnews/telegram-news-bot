@@ -1,39 +1,21 @@
-import os
-import requests
 from flask import Flask, request
+import requests
+import os
 
 app = Flask(__name__)
 
-# متغيرات البيئة
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
-BASE_TELEGRAM_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
+# إعداد التوكن
+TOKEN = os.environ.get("TELEGRAM_TOKEN")
+BASE_TELEGRAM_URL = f"https://api.telegram.org/bot{TOKEN}"
 
-# دالة جلب الأخبار
-def get_news(query="غزة"):
-    url = f"https://newsapi.org/v2/everything?q={query}&apiKey={NEWS_API_KEY}&language=ar&sortBy=publishedAt&pageSize=5"
-    response = requests.get(url)
-    if response.status_code != 200:
-        return "⚠️ حدث خطأ أثناء جلب الأخبار."
-    
-    articles = response.json().get("articles", [])
-    if not articles:
-        return "❌ لا توجد أخبار حالياً."
+def get_news(query):
+    return f"📰 هذه آخر الأخبار حول: {query}"
 
-    result = ""
-    for article in articles:
-        title = article.get("title", "بدون عنوان")
-        url = article.get("url", "")
-        result += f"📰 {title}\n{url}\n\n"
-    return result.strip()
-
-# دالة إرسال رسالة لتليجرام
 def send_message(chat_id, text):
     url = f"{BASE_TELEGRAM_URL}/sendMessage"
     payload = {"chat_id": chat_id, "text": text}
     requests.post(url, data=payload)
 
-# نقطة استقبال الرسائل
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
@@ -43,16 +25,16 @@ def webhook():
         text = message.get("text", "").strip()
 
         if not text:
-            send_message(chat_id, "📩 أرسل كلمة مثل: غزة أو إيران أو لبنان")
+            send_message(chat_id, "أرسل اسم دولة مثل غزة أو لبنان 📩")
         else:
             news = get_news(text)
             send_message(chat_id, news)
 
     except Exception as e:
         print("Error:", e)
+
     return "OK"
 
-# نقطة تفعيل Webhook
 @app.route("/setwebhook")
 def set_webhook():
     webhook_url = f"https://{request.host}/webhook"
@@ -60,7 +42,6 @@ def set_webhook():
     response = requests.post(url, data={"url": webhook_url})
     return response.text
 
-# صفحة فحص التشغيل
 @app.route("/")
 def home():
     return "✅ البوت يعمل بنجاح!"
