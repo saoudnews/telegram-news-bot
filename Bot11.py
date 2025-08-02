@@ -55,3 +55,18 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
+@app.route('/', methods=["POST"])
+def webhook():
+    data = request.get_json()
+
+    if "message" in data:
+        chat_id = data["message"]["chat"]["id"]
+        text = data["message"].get("text", "")
+
+        if text == "/start":
+            send_message(chat_id, "أهلاً بك! أرسل كلمة مفتاحية مثل 'غزة' أو 'إسرائيل' للحصول على آخر الأخبار.")
+        else:
+            news = get_news()
+            send_message(chat_id, news or "لم يتم العثور على أخبار.")
+
+    return {"ok": True}
