@@ -8,10 +8,11 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 KEYWORDS = os.environ.get("KEYWORDS", "").split(",")
 LANGUAGE = os.environ.get("LANGUAGE", "ar")
 NEWS_API = "https://newsapi.org/v2/everything"
-NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "demo")  # استبدل demo بمفتاحك الحقيقي
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "default_key")
 
 def get_news():
     return "✅ البوت يعمل بنجاح! (اختبار)"
+    
     query = " OR ".join(KEYWORDS)
     params = {
         "q": query,
@@ -22,16 +23,20 @@ def get_news():
     }
     response = requests.get(NEWS_API, params=params)
     data = response.json()
+    
     if "articles" in data:
         articles = data["articles"]
         news_list = [f"- {article['title']}\n{article['url']}" for article in articles]
         return "\n\n".join(news_list)
     else:
-        return "لم يتم العثور على أخبار حالياً."
+        return "لم يتم العثور على أخبار حاليًا."
 
 def send_message(chat_id, text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    data = {"chat_id": chat_id, "text": text}
+    data = {
+        "chat_id": chat_id,
+        "text": text
+    }
     requests.post(url, data=data)
 
 @app.route("/setwebhook")
@@ -48,10 +53,10 @@ def receive_update():
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
         if text == "/start":
-            send_message(chat_id, "مرحباً! أرسل لي كلمة مفتاحية لأرسل لك آخر الأخبار.")
+            send_message(chat_id, "أهلاً بك! ✅ البوت يعمل الآن ويجهز لك آخر الأخبار.")
         else:
             news = get_news()
-            send_message(chat_id, news or "لا توجد أخبار حالياً.")
+            send_message(chat_id, news or "لم يتم العثور على أخبار حالياً.")
     return {"ok": True}
 
 @app.route("/")
