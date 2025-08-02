@@ -8,7 +8,7 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 KEYWORDS = os.environ.get("KEYWORDS", "").split(",")
 LANGUAGE = os.environ.get("LANGUAGE", "ar")
 NEWS_API = "https://newsapi.org/v2/everything"
-NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "demo")
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "")
 
 def get_news():
     return "✅ البوت يعمل بنجاح! (اختبار)"
@@ -52,6 +52,10 @@ def set_webhook():
         return "✅ تم ربط البوت بنجاح!"
     else:
         return f"❌ فشل الربط: {response.text}"
+
+@app.route("/", methods=["GET"])
+def home():
+    return "✅ البوت يعمل!"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
